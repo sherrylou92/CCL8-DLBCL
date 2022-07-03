@@ -1,0 +1,28 @@
+#install.packages("VennDiagram")
+
+library(VennDiagram)             
+ppiFile="ppiCount.txt"          
+coxFile="cox.result.txt"        
+setwd("H:\\生信视频\\TMEimmune资料\\23.geneVenn")     
+geneList=list()
+
+
+ppi=read.table(ppiFile, header=T, sep="\t", check.names=F,row.names=1)
+geneNum=50
+if(nrow(ppi)<geneNum){
+	geneNum=nrow(KEGG)
+}
+geneList[["PPI"]]=row.names(ppi)[1:geneNum]
+
+cox=read.table(coxFile, header=T, sep="\t", check.names=F,row.names=1)
+geneList[["COX"]]=row.names(cox)
+
+
+venn.plot=venn.diagram(geneList,filename=NULL,main="Intersection",main.cex = 2,
+             fill=c("darkblue", "darkgreen"),cat.cex=1.2)
+pdf(file="geneVenn.pdf",width=7,height=7)
+grid.draw(venn.plot)
+dev.off()
+
+coreGene=Reduce(intersect,geneList)
+write.table(file="prognosticCoreGene.txt",coreGene,sep="\t",quote=F,row.names=F,col.names=F)
