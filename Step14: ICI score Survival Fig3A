@@ -1,0 +1,74 @@
+#install.packages("survival")
+#install.packages("survminer")
+
+
+library(survival)
+library(survminer)
+scoreFile="ICIscore.txt"   
+cliFile="time.txt"          
+setwd("H:\\第三组GEO\\27.scoreSur")      
+
+score=read.table(scoreFile, header=T, sep="\t", check.names=F, row.names=1)
+sampleType=gsub("(.*?)\\_.*", "\\1", row.names(score))
+score=cbind(score, sampleType)
+rownames(score)=gsub("(.*?)\\_(.*?)", "\\2", rownames(score))
+cli=read.table(cliFile, header=T, sep="\t", check.names=F, row.names=1)
+colnames(cli)=c("futime", "fustat")
+cli$futime=cli$futime/365
+
+sameSample=intersect(row.names(score), row.names(cli))
+data=cbind(cli[sameSample,], score[sameSample,])
+
+
+TCGA=data[data[,"sampleType"]=="TCGA",]
+res.cut=surv_cutpoint(TCGA, time = "futime", event = "fustat", variables =c("score"))
+cutoff=as.numeric(res.cut$cutpoint[1])
+print(cutoff)
+Type=ifelse(data[,"score"]<=cutoff, "Low", "High")
+data$group=Type
+outTab=rbind(id=colnames(data), data)
+write.table(outTab, file="ICIscore.group.txt", sep="\t", quote=F, col.names=F)
+
+
+bioSurvival=function(surData=null, outFile=null){
+	diff=survdiff(Surv(futime, fustat) ~ group, data = surData)
+	length=length(levels(factor(surData[,"group"])))
+	pValue=1-pchisq(diff$chisq, df=length-1)
+	if(pValue<0.001){
+		pValue="p<0.001"
+	}else{
+		pValue=paste0("p=",sprintf("%.03f",pValue))
+	}
+	fit <- survfit(Surv(futime, fustat) ~ group, data = surData)
+	#print(surv_median(fit))
+	
+
+	bioCol=c("#0066FF","#FF9900","#FF0000","#6E568C","#7CC767","#223D6C","#D20A13","#FFD121","#088247","#11AA4D")
+	bioCol=bioCol[1:length(levels(factor(surData[,"group"])))]
+	surPlot=ggsurvplot(fit, 
+			           data=surData,
+			           conf.int=F,
+			           pval=pValue,
+			           pval.size=6,
+			           legend.labs=levels(factor(surData[,"group"])),
+			           legend = c(18, 18),
+			           legend.title="ICI score",
+			           font.legend=12,
+			           xlab="Time(years)",
+			           break.time.by = 2,
+			           palette = bioCol,
+			           surv.median.line = "hv",
+			           risk.table=T,
+			           cumevents=F,
+			           risk.table.height=.25)
+	pdf(file=outFile, onefile = FALSE, width=7, height=5.5)
+	print(surPlot)
+	dev.off()
+}
+
+
+bioSurvival(surData=data, outFile="all.survival.pdf")
+
+for(i in levels(factor(data[,"sampleType"]))){
+	surData=data[data[,"sampleType"]==i,]
+	bioSurvival(surData=surData, outFile=paste0(i,".survival.pdf"))
