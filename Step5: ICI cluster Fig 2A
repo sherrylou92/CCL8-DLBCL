@@ -1,0 +1,30 @@
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install("ConsensusClusterPlus")
+
+
+library(ConsensusClusterPlus)        
+cellFile="1.txt"     
+workDir="D:\\生信视频\\imm分型\\15.ICIcluster - 副本"     
+setwd(workDir)       
+
+
+data=read.table(cellFile, header=T, sep="\t", check.names=F, row.names=1)
+data=t(data)
+
+maxK=9
+results=ConsensusClusterPlus(data,
+              maxK=maxK,
+              reps=50,
+              pItem=0.8,
+              pFeature=1,
+              title=workDir,
+              clusterAlg="km",
+              distance="euclidean",
+              seed=123456,
+              plot="png")
+
+
+clusterNum=2       
+cluster=results[[clusterNum]][["consensusClass"]]
+write.table(cluster,file="ICIcluster.txt",sep="\t",quote=F,col.names=F)
