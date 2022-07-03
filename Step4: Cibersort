@@ -1,0 +1,21 @@
+#install.packages('e1071')
+
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install("preprocessCore")
+
+
+inputFile="merge.txt"      
+setwd("D:\\生信视频\\imm分型\\12.CIBERSORT")     
+source("ICI12.CIBERSORT.R")      
+
+outTab=CIBERSORT("ref.txt", inputFile, perm=100, QN=TRUE)
+
+outTab=outTab[outTab[,"P-value"]<0.05,]
+outTab=as.matrix(outTab[,1:(ncol(outTab))])
+outTab=rbind(id=colnames(outTab), outTab)
+write.table(outTab, file="CIBERSORT-Results2.txt", sep="\t", quote=F, col.names=F)
+
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+ #  install.packages("BiocManager")
+#BiocManager::install("limma")
