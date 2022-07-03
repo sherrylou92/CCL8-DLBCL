@@ -1,0 +1,67 @@
+#install.packages("pheatmap")
+
+
+library(pheatmap)       
+expFile="geneCluster.exp.txt"      
+geneCluFile="geneCluster.txt"      
+immCluFile="ICIcluster.txt"        
+cliFile="clinical.txt"             
+setwd("H:\\生信视频\\imm分型\\25.geneHeatmap")     
+
+
+exp=read.table(expFile, header=T, sep="\t", check.names=F, row.names=1)
+immClu=read.table(immCluFile, header=F, sep="\t", check.names=F, row.names=1)
+geneClu=read.table(geneCluFile, header=F, sep="\t", check.names=F, row.names=1)
+
+exp=as.data.frame(t(exp))
+sameSample=intersect(row.names(exp), row.names(immClu))
+exp=exp[sameSample,]
+expData=cbind(exp, geneCluster=geneClu[sameSample,], ICIcluster=immClu[sameSample,])
+Project=gsub("(.*?)\\_.*", "\\1", rownames(expData))
+rownames(expData)=gsub("(.*?)\\_(.*?)", "\\2", rownames(expData))
+expData=cbind(expData, Project)
+
+cli=read.table(cliFile, header=T, sep="\t", check.names=F, row.names=1)
+sameSample=intersect(row.names(expData), row.names(cli))
+expData=expData[sameSample,]
+cli=cli[sameSample,]
+
+
+data=cbind(expData, cli)
+data=data[order(data$geneCluster),]
+Type=data[,((ncol(data)-2-ncol(cli)):ncol(data))]
+letter=c("A","B","C","D","E","F","G")
+uniqClu=levels(factor(Type$ICIcluster))
+Type$ICIcluster=letter[match(Type$ICIcluster, uniqClu)]
+uniqClu=levels(factor(Type$geneCluster))
+Type$geneCluster=letter[match(Type$geneCluster, uniqClu)]
+data=t(data[,1:(ncol(expData)-3)])
+geneType=gsub("(.*?)\\|(.*?)", "\\2", rownames(data))
+names(geneType)=rownames(data)
+geneType=as.data.frame(geneType)
+
+
+bioCol=c("#0066FF","#FF9900","#FF0000","#6E568C","#7CC767","#223D6C","#D20A13","#FFD121","#088247","#11AA4D")
+ann_colors=list()
+ICIcol=bioCol[1:length(levels(factor(Type$ICIcluster)))]
+names(ICIcol)=levels(factor(Type$ICIcluster))
+ann_colors[["ICIcluster"]]=ICIcol
+GENEcol=bioCol[1:length(levels(factor(Type$geneCluster)))]
+names(GENEcol)=levels(factor(Type$geneCluster))
+ann_colors[["geneCluster"]]=GENEcol
+
+pdf("heatmap.pdf", height=6.5, width=8)
+pheatmap(data,
+         annotation=Type,
+         annotation_row=geneType,
+         annotation_colors = ann_colors,
+         color = colorRampPalette(c(rep("blue",3), "white", rep("red",3)))(100),
+         cluster_cols =F,
+         cluster_rows =F,
+         scale="row",
+         show_colnames=F,
+         show_rownames=T,
+         fontsize=6,
+         fontsize_row=6,
+         fontsize_col=6)
+dev.off()
