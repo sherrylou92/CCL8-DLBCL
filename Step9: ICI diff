@@ -1,0 +1,52 @@
+library(limma)                
+expFile="merge.txt"           
+cluFile="ICIcluster.txt"      
+logFCfilter=2                 
+adj.P.Val.Filter=0.05         
+setwd("D:\\生信视频\\imm分型\\20.ICIdiff - 副本")      
+
+rt=read.table(expFile, header=T, sep="\t", check.names=F)
+rt=as.matrix(rt)
+rownames(rt)=rt[,1]
+exp=rt[,2:ncol(rt)]
+dimnames=list(rownames(exp),colnames(exp))
+data=matrix(as.numeric(as.matrix(exp)),nrow=nrow(exp),dimnames=dimnames)
+data=avereps(data)
+data=data[rowMeans(data)>0,]
+
+cluster=read.table(cluFile, header=F, sep="\t", check.names=F, row.names=1)
+
+sameSample=intersect(colnames(data), row.names(cluster))
+data=data[,sameSample]
+cluster=cluster[sameSample,]
+
+letter=c("A","B","C","D","E","F","G")
+uniqClu=levels(factor(cluster))
+Type=letter[match(cluster, uniqClu)]
+design=model.matrix(~0+factor(Type))
+colnames(design)=levels(factor(Type))
+comp=combn(levels(factor(Type)), 2)
+allDiffGenes=c()
+for(i in 1:ncol(comp)){
+	fit=lmFit(data, design)
+	contrast=paste0(comp[2,i], "-", comp[1,i])
+	#print(contrast)
+	cont.matrix=makeContrasts(contrast, levels=design)
+	fit2=contrasts.fit(fit, cont.matrix)
+	fit2=eBayes(fit2)
+	
+
+	allDiff=topTable(fit2,adjust='fdr',number=200000)
+	allDiffOut=rbind(id=colnames(allDiff),allDiff)
+	write.table(allDiffOut, file=paste0(contrast, ".all.txt"), sep="\t", quote=F, col.names=F)
+	
+
+	diffSig=allDiff[with(allDiff, (abs(logFC)>logFCfilter & adj.P.Val < adj.P.Val.Filter )), ]
+	allDiffGenes=c(allDiffGenes, row.names(diffSig))
+	diffSigOut=rbind(id=colnames(diffSig),diffSig)
+	write.table(diffSigOut, file=paste0(contrast, ".diff.txt"), sep="\t", quote=F, col.names=F)
+}
+
+
+uniqGene=unique(allDiffGenes)
+write.table(uniqGene, file="allDiffGenes.txt", sep="\t", quote=F, col.names=F, row.names=F)
