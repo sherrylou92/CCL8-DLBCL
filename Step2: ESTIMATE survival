@@ -1,0 +1,45 @@
+#install.packages("survival")
+#install.packages("survminer")
+library(survival)
+library(survminer)
+
+inputFile="scoreTime.txt"     
+setwd("H:\\生信视频\\TMEimmune资料\\09.survival")    
+rt=read.table(inputFile,header=T,sep="\t",check.names=F)      
+rt$futime=rt$futime/365                                       
+
+outTab=data.frame()
+for(score in colnames(rt[,4:ncol(rt)])){
+	a=ifelse(rt[,score]<=median(rt[,score]),"Low","High")
+		diff=survdiff(Surv(futime, fustat) ~a,data = rt)
+	pValue=1-pchisq(diff$chisq,df=1)
+	fit=survfit(Surv(futime, fustat) ~ a, data = rt)
+
+    scoreKm=cbind(score=score,KM=pValue)
+	outTab=rbind(outTab,scoreKm)
+	if(pValue<0.001){
+		pValue="p<0.001"
+	}else{
+		pValue=paste0("p=",sprintf("%.03f",pValue))
+	}
+	titleName=score
+	surPlot=ggsurvplot(fit, 
+						data=rt,
+						conf.int=TRUE,
+						pval=pValue,
+						pval.size=6,
+						risk.table=T,
+						#ncensor.plot = TRUE,
+						legend.labs=c("high","low"),
+						legend.title=titleName,
+						xlab="Time(years)",
+						break.time.by = 2,
+						risk.table.title="",
+						palette=c("red", "blue"),
+						risk.table.height=.25)          
+	pdf(file=paste0("sur.",score,".pdf"), width =6.5, height = 5.5,onefile = FALSE)
+	print(surPlot)
+	dev.off()
+}
+
+write.table(outTab,file="survResult.xls",sep="\t",row.names=F,quote=F)
