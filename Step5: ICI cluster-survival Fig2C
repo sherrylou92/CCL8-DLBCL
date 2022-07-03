@@ -1,0 +1,54 @@
+#install.packages("pheatmap")
+
+
+library(pheatmap)        
+cellFile="CIBERSORT-Results.txt"     
+scoreFile="scores.txt"               
+clusterFile="ICIcluster.txt"        
+cliFile="clinical删减.txt"               
+setwd("D:\\生信视频\\imm分型\\17.ICIheatmap - 副本")     
+
+cell=read.table(cellFile, header=T, sep="\t", check.names=F, row.names=1)
+score=read.table(scoreFile, header=T, sep="\t", check.names=F, row.names=1)
+cluster=read.table(clusterFile, header=F, sep="\t", check.names=F, row.names=1)
+
+sameSample=intersect(row.names(cell), row.names(score))
+cell=cell[sameSample,]
+score=score[sameSample,]
+immData=cbind(cell, score[,1:2], ICIcluster=cluster[sameSample,])
+rownames(immData)=gsub("(.*?)\\_(.*?)", "\\2", rownames(immData))
+immData=cbind(immData, Project)
+
+cli=read.table(cliFile, header=T, sep="\t", check.names=F, row.names=1)
+sameSample=intersect(row.names(immData), row.names(cli))
+immData=immData[sameSample,]
+cli=cli[sameSample,]
+
+data=cbind(immData, cli)
+data=data[order(data$ICIcluster),]
+Type=data[,(25:ncol(data))]
+letter=c("A","B","C","D","E","F","G")
+uniqClu=levels(factor(Type$ICIcluster))
+Type$ICIcluster=letter[match(Type$ICIcluster, uniqClu)]
+data=t(data[,1:24])
+
+bioCol=c("#0066FF","#FF9900","#FF0000","#6E568C","#7CC767","#223D6C","#D20A13","#FFD121","#088247","#11AA4D")
+ann_colors=list()
+ICIcol=bioCol[1:length(levels(factor(Type$ICIcluster)))]
+names(ICIcol)=levels(factor(Type$ICIcluster))
+ann_colors[["ICIcluster"]]=ICIcol
+
+
+pdf("heatmap.pdf", height=5, width=8)
+pheatmap(data,
+         annotation=Type,
+         annotation_colors = ann_colors,
+         color = colorRampPalette(c(rep("blue",5), "white", rep("red",5)))(100),
+         cluster_cols =F,
+         cluster_rows =F,
+         scale="row",
+         show_colnames=F,
+         fontsize=6,
+         fontsize_row=6,
+         fontsize_col=6)
+dev.off()
