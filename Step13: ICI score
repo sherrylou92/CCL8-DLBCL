@@ -1,0 +1,45 @@
+#install.packages("Boruta")
+
+
+library("Boruta")      #引用包
+expFile="geneCluster.exp.txt"      #表达输入文件
+geneCluFile="geneCluster.txt"      #基因分型文件
+setwd("D:\\第三组GEO\\26.PCA")     #设置工作目录
+
+#读取输入文件
+exp=read.table(expFile, header=T, sep="\t", check.names=F, row.names=1)
+data=exp
+geneClu=read.table(geneCluFile, header=F, sep="\t", check.names=F, row.names=1)
+geneType=gsub("(.*?)\\|(.*?)", "\\2", row.names(exp))
+row.names(exp)=gsub("(.*?)\\|.*", "\\1", row.names(exp))
+
+#Boruta查找特征基因
+feature=c()
+for(i in levels(factor(geneType))){
+	b1=Boruta(t(exp[geneType==i,]), geneClu[,1], doTrace = 2)
+	#plot(b1, sort=T)
+	final.boruta=TentativeRoughFix(b1)
+	selectGenes=getSelectedAttributes(final.boruta, withTentative = F)
+	selectGenes=paste0(selectGenes, "|", i)
+	feature=c(feature, selectGenes)
+}
+
+#输出特征基因表达量
+sameGene=intersect(feature, row.names(data))
+outTab=data[sameGene,]
+outTab=rbind(gene=colnames(outTab), outTab)
+write.table(outTab, file="featureGenes.exp.txt", sep="\t", quote=F, col.names=F)
+
+#PCA分析
+data=data[sameGene,]
+geneType=gsub("(.*?)\\|(.*?)", "\\2", row.names(data))
+dataA=t(data[geneType=="A",])
+dataB=t(data[geneType=="B",])
+pcaA=prcomp(dataA, scale=TRUE)
+pcaB=prcomp(dataB, scale=TRUE)
+valueA=predict(pcaA)
+valueB=predict(pcaB)
+score=valueA[,1]-valueB[,1]
+score=as.data.frame(score)
+scoreOut=rbind(id=colnames(score), score)
+write.table(scoreOut, file="ICIscore.txt", sep="\t", quote=F, col.names=F)
